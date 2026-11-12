@@ -1,0 +1,596 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>לוח השנה של החברים</title>
+<style>
+  :root {
+    --bg: #faf7f2; --card: #ffffff; --ink: #2b2623; --muted: #7a706a; --line: #e8e1d8;
+    --accent: #d9593a; --accent-ink: #ffffff; --bday: #f2b632; --event: #3a8f85;
+    --hol: #4a6fc0; --fast: #8a8f9c; --today: #fde9e2;
+    --shadow: 0 8px 30px rgba(43, 38, 35, .15);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #1b1816; --card: #26221f; --ink: #f1ebe4; --muted: #a39990; --line: #3b3531;
+      --accent: #ec7556; --today: #3d2a24; --hol: #6f8fe0; --fast: #6f7482; --shadow: 0 8px 30px rgba(0,0,0,.5); }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif; }
+  button, input, textarea, select { font: inherit; color: inherit; }
+  .hidden { display: none !important; }
+
+  .btn { white-space: nowrap; border: 1px solid var(--line); background: var(--card); padding: 8px 14px; border-radius: 10px; cursor: pointer; }
+  .btn:hover { border-color: var(--accent); }
+  .btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); font-weight: 600; }
+  .btn.danger { color: #c0392b; }
+  .btn:disabled { opacity: .6; cursor: wait; }
+  label { display: block; font-size: 14px; color: var(--muted); margin: 12px 0 4px; }
+  input[type=text], input[type=email], input[type=password], input[type=date], textarea {
+    width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+  input[type=email], input[type=password] { direction: ltr; text-align: right; }
+  input:focus, textarea:focus, .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .check { display: flex; gap: 8px; align-items: center; margin-top: 12px; color: var(--ink); font-size: 15px; }
+  .error { color: #c0392b; font-size: 14px; min-height: 1.2em; margin-top: 8px; }
+
+  #login { max-width: 380px; margin: 12vh auto; padding: 0 16px; }
+  #login .panel { background: var(--card); padding: 28px; border-radius: 16px; box-shadow: var(--shadow); }
+  #login h1 { margin: 0 0 4px; font-size: 26px; }
+  #login p { margin: 0 0 8px; color: var(--muted); }
+
+  #app { max-width: 1100px; margin: 0 auto; padding: 16px; }
+  header.top { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  header.top h1 { margin: 0; font-size: 22px; }
+  .who { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; color: var(--muted); font-size: 14px; }
+  .layout { display: grid; grid-template-columns: 1fr 260px; gap: 16px; align-items: start; }
+  @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } }
+
+  .cal { background: var(--card); border-radius: 16px; padding: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.05); }
+  .cal-head { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+  .cal-title { flex: 1; text-align: center; }
+  .cal-title h2 { margin: 0; font-size: 20px; }
+  .cal-title .heb { font-size: 13px; color: var(--muted); }
+  .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+  .dow { text-align: center; font-size: 12px; color: var(--muted); padding: 4px 0; }
+  .day { min-height: 96px; border: 1px solid var(--line); border-radius: 10px; padding: 4px 5px; cursor: pointer;
+    background: var(--bg); text-align: start; overflow: hidden; display: flex; flex-direction: column; gap: 2px; }
+  .day:hover { border-color: var(--accent); }
+  .day.other { opacity: .4; }
+  .day.today { background: var(--today); border-color: var(--accent); }
+  .day.shabbat .num { color: var(--hol); }
+  .top-row { display: flex; justify-content: space-between; align-items: baseline; gap: 4px; }
+  .day .num { font-size: 13px; font-weight: 600; }
+  .day .hd { font-size: 10px; color: var(--muted); white-space: nowrap; }
+  .chip { font-size: 11px; line-height: 1.25; padding: 1px 5px; border-radius: 6px; color: #1d1a18; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; }
+  .chip.birthday { background: var(--bday); }
+  .chip.event { background: var(--event); color: #fff; }
+  .chip.holiday { background: var(--hol); color: #fff; }
+  .chip.fast { background: var(--fast); color: #fff; }
+  .more { font-size: 11px; color: var(--muted); }
+  @media (min-width: 601px) { .dots { display: contents; } }
+  @media (max-width: 600px) {
+    .day { min-height: 58px; padding: 3px; }
+    .day .hd { display: none; }
+    .chip { font-size: 0; padding: 0; height: 6px; width: 6px; border-radius: 50%; display: inline-block; }
+    .dots { display: flex; gap: 3px; flex-wrap: wrap; }
+  }
+  .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 10px; }
+  .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-inline-end: 4px; vertical-align: -1px; }
+
+  aside .panel { background: var(--card); border-radius: 16px; padding: 14px; box-shadow: 0 2px 10px rgba(0,0,0,.05); }
+  aside h3 { margin: 0 0 8px; font-size: 16px; }
+  .up { display: flex; gap: 10px; align-items: center; padding: 7px 0; border-top: 1px solid var(--line); cursor: pointer; }
+  .up:first-of-type { border-top: 0; }
+  .up .d { min-width: 44px; text-align: center; font-size: 12px; color: var(--muted); line-height: 1.2; }
+  .up .d b { display: block; font-size: 18px; color: var(--ink); }
+  .up .t { font-size: 14px; overflow-wrap: anywhere; }
+  .empty { color: var(--muted); font-size: 14px; }
+
+  #tip { position: fixed; z-index: 50; width: 280px; background: var(--card); border-radius: 14px; box-shadow: var(--shadow);
+    padding: 10px; pointer-events: none; border: 1px solid var(--line); }
+  .ev { display: flex; gap: 10px; align-items: flex-start; }
+  .ev + .ev, .hol + .ev, .ev + .hol { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+  .ev img { width: 72px; height: 72px; object-fit: cover; border-radius: 10px; flex: none; background: var(--line); }
+  .ev .ph { width: 72px; height: 72px; border-radius: 10px; flex: none; display: grid; place-items: center; font-size: 30px; background: var(--bg); }
+  .ev .name { font-weight: 700; overflow-wrap: anywhere; }
+  .ev .meta { font-size: 13px; color: var(--muted); }
+  .ev .desc { font-size: 14px; margin-top: 2px; overflow-wrap: anywhere; white-space: pre-wrap; }
+  .hol { display: flex; gap: 8px; align-items: center; font-size: 14px; }
+  .hol + .hol { margin-top: 6px; padding-top: 0; border-top: 0; }
+
+  dialog { border: 0; border-radius: 16px; padding: 20px; width: min(440px, calc(100vw - 24px)); background: var(--card); color: var(--ink);
+    box-shadow: var(--shadow); }
+  dialog::backdrop { background: rgba(0,0,0,.45); }
+  dialog h3 { margin: 0 0 6px; }
+  .row { display: flex; gap: 8px; justify-content: flex-start; margin-top: 16px; flex-wrap: wrap; }
+  #dayList .ev img, #dayList .ev .ph { width: 88px; height: 88px; }
+  #dayList .ev .actions { margin-top: 6px; }
+  .hol-list { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+  .preview { max-width: 100%; max-height: 160px; border-radius: 10px; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<!-- כניסה -->
+<main id="login" class="hidden">
+  <div class="panel">
+    <h1>🎂 לוח השנה של החברים</h1>
+    <p>התחברו כדי לראות ימי הולדת ותוכניות.</p>
+    <form id="loginForm">
+      <label for="email">אימייל</label>
+      <input id="email" type="email" autocomplete="username" required>
+      <label for="password">סיסמה</label>
+      <input id="password" type="password" autocomplete="current-password" required>
+      <div class="error" id="loginError" role="alert"></div>
+      <div class="row"><button class="btn primary" type="submit" id="loginBtn">כניסה</button></div>
+    </form>
+    <p style="margin-top:14px;font-size:13px">אין לכם חשבון או שכחתם סיסמה? פנו למארגן.</p>
+  </div>
+</main>
+
+<!-- האפליקציה -->
+<div id="app" class="hidden">
+  <header class="top">
+    <h1>🎂 לוח השנה של החברים</h1>
+    <div class="who">
+      <span>מחובר/ת כ־<b id="meName"></b></span>
+      <button class="btn" id="renameBtn" title="שינוי השם שמופיע ליד האירועים שלך">שינוי שם</button>
+      <button class="btn" id="logoutBtn">התנתקות</button>
+    </div>
+  </header>
+
+  <div class="layout">
+    <section class="cal">
+      <div class="cal-head">
+        <button class="btn" id="prev" aria-label="חודש קודם">›</button>
+        <div class="cal-title">
+          <h2 id="monthTitle"></h2>
+          <div class="heb" id="hebTitle"></div>
+        </div>
+        <button class="btn" id="next" aria-label="חודש הבא">‹</button>
+        <button class="btn" id="todayBtn">היום</button>
+        <button class="btn primary" id="addBtn">+ הוספה</button>
+      </div>
+      <div class="grid" id="dows"></div>
+      <div class="grid" id="grid"></div>
+      <div class="legend">
+        <span><i style="background:var(--bday)"></i>יום הולדת</span>
+        <span><i style="background:var(--event)"></i>אירוע</span>
+        <span><i style="background:var(--hol)"></i>חג / מועד</span>
+        <span><i style="background:var(--fast)"></i>צום</span>
+        <label class="check" style="margin:0 auto 0 0;font-size:12px;color:var(--muted)"><input id="holToggle" type="checkbox" checked> הצגת חגים ומועדים</label>
+      </div>
+    </section>
+    <aside>
+      <div class="panel">
+        <h3>בקרוב</h3>
+        <div id="upcoming"></div>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div id="tip" class="hidden" role="tooltip"></div>
+
+<!-- פרטי יום -->
+<dialog id="dayDlg">
+  <h3 id="dayTitle"></h3>
+  <div class="empty" id="dayHeb"></div>
+  <div id="dayList"></div>
+  <div class="row">
+    <button class="btn primary" id="dayAdd">+ הוספה ביום הזה</button>
+    <button class="btn" id="dayClose">סגירה</button>
+  </div>
+</dialog>
+
+<!-- הוספת אירוע -->
+<dialog id="addDlg">
+  <form id="addForm">
+    <h3>הוספת אירוע</h3>
+    <label for="fTitle">שם</label>
+    <input id="fTitle" type="text" maxlength="100" placeholder="למשל: יום ההולדת של דנה" required>
+    <label for="fDate">תאריך</label>
+    <input id="fDate" type="date" required>
+    <label for="fDesc">פרטים (לא חובה)</label>
+    <textarea id="fDesc" rows="3" maxlength="500" placeholder="מה היא רוצה לעשות?"></textarea>
+    <label for="fCat">סוג</label>
+    <select id="fCat" class="btn" style="width:100%;text-align:start">
+      <option value="event">אירוע / תוכנית</option>
+      <option value="birthday">יום הולדת</option>
+    </select>
+    <label class="check"><input id="fYearly" type="checkbox"> חוזר כל שנה</label>
+    <label for="fPic">תמונה (לא חובה)</label>
+    <input id="fPic" type="file" accept="image/*">
+    <img id="fPreview" class="preview hidden" alt="תצוגה מקדימה של התמונה">
+    <div class="error" id="addError" role="alert"></div>
+    <div class="row">
+      <button type="submit" class="btn primary" id="addSave">שמירה</button>
+      <button type="button" class="btn" id="addCancel">ביטול</button>
+    </div>
+  </form>
+</dialog>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<!-- חגים ותאריך עברי (Hebcal, חינמי) -->
+<script src="https://cdn.jsdelivr.net/npm/@hebcal/core@5.8.14/dist/bundle.min.js"></script>
+<script>
+/* ======================= הגדרות (יש לערוך שתי שורות אלה) ======================= */
+const SUPABASE_URL = "PASTE_YOUR_PROJECT_URL_HERE";       // למשל https://abcdxyz.supabase.co
+const SUPABASE_ANON_KEY = "PASTE_YOUR_ANON_PUBLIC_KEY_HERE"; // מפתח "anon public" (בטוח לפרסום)
+/* ============================================================================ */
+
+const BUCKET = "event-images";
+const $ = (id) => document.getElementById(id);
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+const HC = window.hebcal || null; // אם הספרייה לא נטענה, האתר ממשיך לעבוד בלי חגים
+
+const state = { user: null, name: "", events: [], year: 0, month: 0, showHolidays: true };
+const MONTHS = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
+const DOWS = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"];
+
+try { state.showHolidays = localStorage.getItem("showHolidays") !== "0"; } catch (_) {}
+$("holToggle").checked = state.showHolidays;
+$("holToggle").addEventListener("change", () => {
+  state.showHolidays = $("holToggle").checked;
+  try { localStorage.setItem("showHolidays", state.showHolidays ? "1" : "0"); } catch (_) {}
+  render();
+});
+
+/* ---------- תאריכים (תאריכים מקומיים, בלי בעיות אזור זמן) ---------- */
+const pad = (n) => String(n).padStart(2, "0");
+const ymd = (y, m, d) => `${y}-${pad(m + 1)}-${pad(d)}`;
+const isLeap = (y) => (y % 4 === 0 && y % 100 !== 0) || y % 400 === 0;
+const todayStr = () => { const t = new Date(); return ymd(t.getFullYear(), t.getMonth(), t.getDate()); };
+const toDate = (ds) => { const [y, m, d] = ds.split("-").map(Number); return new Date(y, m - 1, d); };
+const prettyDate = (ds) => toDate(ds).toLocaleDateString("he-IL", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+
+function occursOn(ev, dateStr) {
+  if (ev.event_date === dateStr) return true;
+  if (!ev.repeats_yearly) return false;
+  const y = Number(dateStr.slice(0, 4)), md = dateStr.slice(5);
+  if (y < Number(ev.event_date.slice(0, 4))) return false;
+  const evMd = ev.event_date.slice(5);
+  if (evMd === md) return true;
+  return evMd === "02-29" && md === "02-28" && !isLeap(y); // יום הולדת ב־29.2 מוצג ב־28.2 בשנה רגילה
+}
+const eventsOn = (ds) => state.events.filter((e) => occursOn(e, ds));
+
+/* ---------- חגים ומועדים (ישראל) ו־תאריך עברי ---------- */
+const holidayCache = new Map(); // שנה לועזית -> Map(תאריך -> [{title, kind}])
+function holidaysForYear(year) {
+  if (holidayCache.has(year)) return holidayCache.get(year);
+  const map = new Map();
+  if (HC) {
+    try {
+      const list = HC.HebrewCalendar.calendar({
+        year, isHebrewYear: false, il: true, locale: "he-x-NoNikud",
+        noRoshChodesh: true, noSpecialShabbat: true, noMinorFast: false, noModern: false,
+      });
+      const F = HC.flags;
+      for (const e of list) {
+        const f = e.getFlags();
+        if (!(f & (F.CHAG | F.MAJOR_FAST | F.MINOR_FAST | F.MODERN_HOLIDAY | F.MINOR_HOLIDAY | F.EREV | F.CHOL_HAMOED | F.CHANUKAH_CANDLES))) continue;
+        if (/selichot|chanukah: 8th day/i.test(e.getDesc())) continue; // skip Selichot and the duplicate "8th day" entry
+        const d = e.getDate().greg();
+        const ds = ymd(d.getFullYear(), d.getMonth(), d.getDate());
+        const kind = f & (F.MAJOR_FAST | F.MINOR_FAST) ? "fast" : "holiday";
+        const icon = f & F.MODERN_HOLIDAY ? "🇮🇱" : kind === "fast" ? "🕯️" : f & F.CHANUKAH_CANDLES ? "🕎" : "✨";
+        if (!map.has(ds)) map.set(ds, []);
+        map.get(ds).push({ title: e.render("he-x-NoNikud"), kind, icon });
+      }
+    } catch (err) { console.error("holidays failed", err); }
+  }
+  holidayCache.set(year, map);
+  return map;
+}
+const holidaysOn = (ds) => (state.showHolidays ? holidaysForYear(Number(ds.slice(0, 4))).get(ds) || [] : []);
+
+function hebrewDay(date) {
+  if (!HC) return "";
+  const hd = new HC.HDate(date);
+  const day = HC.gematriya(hd.getDate());
+  return hd.getDate() === 1 ? `${day} ${hebMonthName(hd)}` : day;
+}
+function hebMonthName(hd) { return HC.Locale.gettext(hd.getMonthName(), "he-x-nonikud"); }
+function hebMonthRange(year, month) {
+  if (!HC) return "";
+  const a = new HC.HDate(new Date(year, month, 1)), b = new HC.HDate(new Date(year, month + 1, 0));
+  const yr = (hd) => HC.gematriya(hd.getFullYear() % 1000);
+  if (a.getMonth() === b.getMonth()) return `${hebMonthName(a)} ${yr(a)}`;
+  return a.getFullYear() === b.getFullYear()
+    ? `${hebMonthName(a)} – ${hebMonthName(b)} ${yr(a)}`
+    : `${hebMonthName(a)} ${yr(a)} – ${hebMonthName(b)} ${yr(b)}`;
+}
+
+/* ---------- התחברות ---------- */
+async function boot() {
+  if (SUPABASE_URL.startsWith("PASTE_")) {
+    document.body.innerHTML = '<p style="padding:24px;font-family:system-ui">נדרשת הגדרה: פתחו את <b>index.html</b> והדביקו את כתובת הפרויקט ואת מפתח ה־anon של Supabase בראש הסקריפט.</p>';
+    return;
+  }
+  const t = new Date(); state.year = t.getFullYear(); state.month = t.getMonth();
+  const { data } = await sb.auth.getSession();
+  await applySession(data.session);
+  sb.auth.onAuthStateChange((_e, session) => { applySession(session); });
+}
+
+let lastUid = null;
+async function applySession(session) {
+  const uid = session?.user?.id ?? null;
+  if (uid === lastUid && uid !== null) return;
+  lastUid = uid;
+  if (!session) {
+    state.user = null;
+    $("app").classList.add("hidden");
+    $("login").classList.remove("hidden");
+    return;
+  }
+  state.user = session.user;
+  $("login").classList.add("hidden");
+  $("app").classList.remove("hidden");
+  await ensureProfile();
+  await loadEvents();
+}
+
+async function ensureProfile() {
+  let { data } = await sb.from("profiles").select("display_name").eq("id", state.user.id).maybeSingle();
+  if (!data) {
+    const name = (state.user.email || "חבר").split("@")[0];
+    await sb.from("profiles").insert({ id: state.user.id, display_name: name });
+    data = { display_name: name };
+  }
+  state.name = data.display_name;
+  $("meName").textContent = state.name;
+}
+
+$("loginForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  $("loginError").textContent = "";
+  $("loginBtn").disabled = true;
+  const { error } = await sb.auth.signInWithPassword({ email: $("email").value.trim(), password: $("password").value });
+  $("loginBtn").disabled = false;
+  if (error) $("loginError").textContent = "הכניסה נכשלה. בדקו את האימייל והסיסמה.";
+  else $("password").value = "";
+});
+$("logoutBtn").addEventListener("click", () => sb.auth.signOut());
+$("renameBtn").addEventListener("click", async () => {
+  const name = prompt("השם שיופיע ליד האירועים שלך:", state.name);
+  if (!name || !name.trim()) return;
+  const { error } = await sb.from("profiles").update({ display_name: name.trim().slice(0, 40) }).eq("id", state.user.id);
+  if (error) return alert("לא ניתן לשנות שם: " + error.message);
+  state.name = name.trim().slice(0, 40);
+  $("meName").textContent = state.name;
+  await loadEvents();
+});
+
+/* ---------- נתונים ---------- */
+async function loadEvents() {
+  const { data, error } = await sb.from("events").select("*, profiles(display_name)").order("event_date");
+  if (error) { console.error(error); alert("לא ניתן לטעון אירועים: " + error.message); return; }
+  state.events = data || [];
+  render();
+}
+const imgUrl = (path) => (path ? sb.storage.from(BUCKET).getPublicUrl(path).data.publicUrl : null);
+
+/* ---------- ציור הלוח ---------- */
+function render() { renderCalendar(); renderUpcoming(); }
+
+function renderCalendar() {
+  const { year, month } = state;
+  $("monthTitle").textContent = `${MONTHS[month]} ${year}`;
+  $("hebTitle").textContent = hebMonthRange(year, month);
+  if (!$("dows").childElementCount) DOWS.forEach((d) => { const el = document.createElement("div"); el.className = "dow"; el.textContent = d; $("dows").append(el); });
+
+  const grid = $("grid"); grid.replaceChildren();
+  const first = new Date(year, month, 1).getDay();
+  const dim = new Date(year, month + 1, 0).getDate();
+  const total = Math.ceil((first + dim) / 7) * 7;
+  const today = todayStr();
+
+  for (let i = 0; i < total; i++) {
+    const dt = new Date(year, month, 1 - first + i);
+    const ds = ymd(dt.getFullYear(), dt.getMonth(), dt.getDate());
+    const evs = eventsOn(ds), hols = holidaysOn(ds);
+    const cell = document.createElement("button");
+    cell.type = "button";
+    cell.className = "day" + (dt.getMonth() !== month ? " other" : "") + (ds === today ? " today" : "") + (dt.getDay() === 6 ? " shabbat" : "");
+    cell.setAttribute("aria-label", [prettyDate(ds), ...evs.map((e) => e.title), ...hols.map((h) => h.title)].join(", "));
+
+    const top = document.createElement("div"); top.className = "top-row";
+    const num = document.createElement("span"); num.className = "num"; num.textContent = dt.getDate();
+    const hd = document.createElement("span"); hd.className = "hd"; hd.textContent = hebrewDay(dt);
+    top.append(num, hd); cell.append(top);
+
+    const chips = [
+      ...evs.map((e) => ({ cls: e.category, text: (e.category === "birthday" ? "🎂 " : "") + e.title })),
+      ...hols.map((h) => ({ cls: h.kind, text: h.title })),
+    ];
+    const dots = document.createElement("div"); dots.className = "dots";
+    chips.slice(0, 3).forEach((c) => { const chip = document.createElement("span"); chip.className = "chip " + c.cls; chip.textContent = c.text; dots.append(chip); });
+    cell.append(dots);
+    if (chips.length > 3) { const m = document.createElement("span"); m.className = "more"; m.textContent = `ועוד ${chips.length - 3}`; cell.append(m); }
+
+    if (chips.length) {
+      cell.addEventListener("mouseenter", () => showTip(cell, evs, hols));
+      cell.addEventListener("mouseleave", hideTip);
+      cell.addEventListener("focus", () => showTip(cell, evs, hols));
+      cell.addEventListener("blur", hideTip);
+    }
+    cell.addEventListener("click", () => { hideTip(); openDay(ds); });
+    grid.append(cell);
+  }
+}
+
+function renderUpcoming() {
+  const box = $("upcoming"); box.replaceChildren();
+  const now = new Date(); let shown = 0;
+  for (let i = 0; i < 90 && shown < 7; i++) {
+    const dt = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+    const ds = ymd(dt.getFullYear(), dt.getMonth(), dt.getDate());
+    const items = [
+      ...eventsOn(ds).map((e) => (e.category === "birthday" ? "🎂 " : "") + e.title),
+      ...holidaysOn(ds).filter((h) => h.kind === "holiday").map((h) => h.icon + " " + h.title),
+    ];
+    for (const text of items) {
+      if (shown >= 7) break;
+      const row = document.createElement("div"); row.className = "up";
+      const d = document.createElement("div"); d.className = "d"; d.innerHTML = "<b></b><span></span>";
+      d.querySelector("b").textContent = dt.getDate();
+      d.querySelector("span").textContent = MONTHS[dt.getMonth()];
+      const t = document.createElement("div"); t.className = "t"; t.textContent = text;
+      row.append(d, t);
+      row.addEventListener("click", () => openDay(ds));
+      box.append(row); shown++;
+    }
+  }
+  if (!shown) { const p = document.createElement("div"); p.className = "empty"; p.textContent = "אין כלום ב־3 החודשים הקרובים."; box.append(p); }
+}
+
+/* ---------- כרטיסים ---------- */
+function eventCard(e, withActions) {
+  const wrap = document.createElement("div"); wrap.className = "ev";
+  const url = imgUrl(e.image_path);
+  if (url) { const im = document.createElement("img"); im.src = url; im.alt = ""; im.loading = "lazy"; wrap.append(im); }
+  else { const ph = document.createElement("div"); ph.className = "ph"; ph.textContent = e.category === "birthday" ? "🎂" : "🎉"; wrap.append(ph); }
+  const body = document.createElement("div");
+  const name = document.createElement("div"); name.className = "name"; name.textContent = e.title; body.append(name);
+  const meta = document.createElement("div"); meta.className = "meta";
+  meta.textContent = `נוסף על ידי ${e.profiles?.display_name || "מישהו"}${e.repeats_yearly ? " · כל שנה" : ""}`;
+  body.append(meta);
+  if (e.description) { const d = document.createElement("div"); d.className = "desc"; d.textContent = e.description; body.append(d); }
+  if (withActions && e.created_by === state.user.id) {
+    const act = document.createElement("div"); act.className = "actions";
+    const del = document.createElement("button"); del.className = "btn danger"; del.textContent = "מחיקה";
+    del.addEventListener("click", () => deleteEvent(e));
+    act.append(del); body.append(act);
+  }
+  wrap.append(body);
+  return wrap;
+}
+function holidayRow(h) {
+  const r = document.createElement("div"); r.className = "hol";
+  const i = document.createElement("span"); i.textContent = h.icon;
+  const t = document.createElement("span"); t.textContent = h.title;
+  r.append(i, t); return r;
+}
+
+/* ---------- חלונית ריחוף ---------- */
+function showTip(cell, evs, hols) {
+  const tip = $("tip"); tip.replaceChildren();
+  evs.slice(0, 4).forEach((e) => tip.append(eventCard(e, false)));
+  if (evs.length > 4) { const m = document.createElement("div"); m.className = "meta"; m.style.marginTop = "8px"; m.textContent = `ועוד ${evs.length - 4}, לחצו על היום`; tip.append(m); }
+  hols.forEach((h) => tip.append(holidayRow(h)));
+  tip.classList.remove("hidden");
+  const r = cell.getBoundingClientRect(), tw = tip.offsetWidth, th = tip.offsetHeight;
+  let left = r.left + r.width / 2 - tw / 2;
+  left = Math.max(8, Math.min(left, window.innerWidth - tw - 8));
+  let top = r.bottom + 8;
+  if (top + th > window.innerHeight - 8) top = Math.max(8, r.top - th - 8);
+  tip.style.left = left + "px"; tip.style.top = top + "px";
+}
+function hideTip() { $("tip").classList.add("hidden"); }
+
+/* ---------- חלון יום ---------- */
+let dayDate = null;
+function openDay(ds) {
+  dayDate = ds;
+  $("dayTitle").textContent = prettyDate(ds);
+  $("dayHeb").textContent = HC ? new HC.HDate(toDate(ds)).renderGematriya(true) : "";
+  const list = $("dayList"); list.replaceChildren();
+  const evs = eventsOn(ds), hols = holidaysOn(ds);
+  if (!evs.length && !hols.length) { const p = document.createElement("p"); p.className = "empty"; p.textContent = "אין עדיין אירועים."; list.append(p); }
+  evs.forEach((e) => list.append(eventCard(e, true)));
+  if (hols.length) { const box = document.createElement("div"); box.className = "hol-list"; hols.forEach((h) => box.append(holidayRow(h))); list.append(box); }
+  if (!$("dayDlg").open) $("dayDlg").showModal();
+}
+$("dayClose").addEventListener("click", () => $("dayDlg").close());
+$("dayAdd").addEventListener("click", () => { $("dayDlg").close(); openAdd(dayDate); });
+
+async function deleteEvent(e) {
+  if (!confirm(`למחוק את "${e.title}"?`)) return;
+  const { error } = await sb.from("events").delete().eq("id", e.id);
+  if (error) return alert("לא ניתן למחוק: " + error.message);
+  if (e.image_path) await sb.storage.from(BUCKET).remove([e.image_path]);
+  await loadEvents();
+  openDay(dayDate);
+}
+
+/* ---------- הוספת אירוע ---------- */
+function openAdd(ds) {
+  $("addForm").reset();
+  $("fDate").value = ds || todayStr();
+  $("fPreview").classList.add("hidden");
+  $("addError").textContent = "";
+  $("addDlg").showModal();
+}
+$("addBtn").addEventListener("click", () => openAdd(null));
+$("addCancel").addEventListener("click", () => $("addDlg").close());
+$("fCat").addEventListener("change", () => { if ($("fCat").value === "birthday") $("fYearly").checked = true; });
+$("fPic").addEventListener("change", () => {
+  const f = $("fPic").files[0], pv = $("fPreview");
+  if (!f) return pv.classList.add("hidden");
+  pv.src = URL.createObjectURL(f); pv.classList.remove("hidden");
+});
+
+// הקטנת תמונות בדפדפן כדי שה־1GB החינמי יספיק (כ־100KB לתמונה)
+function shrinkImage(file, max = 900) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width * scale); c.height = Math.round(img.height * scale);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      c.toBlob((b) => (b ? resolve(b) : reject(new Error("לא ניתן לעבד את התמונה"))), "image/jpeg", 0.82);
+      URL.revokeObjectURL(img.src);
+    };
+    img.onerror = () => reject(new Error("הקובץ אינו תמונה תקינה"));
+    img.src = URL.createObjectURL(file);
+  });
+}
+
+$("addForm").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  $("addError").textContent = "";
+  $("addSave").disabled = true;
+  try {
+    let image_path = null;
+    const file = $("fPic").files[0];
+    if (file) {
+      const blob = await shrinkImage(file);
+      image_path = `${state.user.id}/${crypto.randomUUID()}.jpg`;
+      const up = await sb.storage.from(BUCKET).upload(image_path, blob, { contentType: "image/jpeg" });
+      if (up.error) throw up.error;
+    }
+    const row = {
+      title: $("fTitle").value.trim(), event_date: $("fDate").value,
+      description: $("fDesc").value.trim() || null, category: $("fCat").value,
+      repeats_yearly: $("fYearly").checked, image_path,
+    };
+    const { error } = await sb.from("events").insert(row);
+    if (error) { if (image_path) await sb.storage.from(BUCKET).remove([image_path]); throw error; }
+    $("addDlg").close();
+    const [y, m] = row.event_date.split("-").map(Number); state.year = y; state.month = m - 1;
+    await loadEvents();
+  } catch (err) {
+    $("addError").textContent = "לא ניתן לשמור: " + (err.message || err);
+  } finally {
+    $("addSave").disabled = false;
+  }
+});
+
+/* ---------- ניווט בין חודשים ---------- */
+function shiftMonth(n) {
+  const d = new Date(state.year, state.month + n, 1);
+  state.year = d.getFullYear(); state.month = d.getMonth(); renderCalendar();
+}
+$("prev").addEventListener("click", () => shiftMonth(-1));
+$("next").addEventListener("click", () => shiftMonth(1));
+$("todayBtn").addEventListener("click", () => { const t = new Date(); state.year = t.getFullYear(); state.month = t.getMonth(); renderCalendar(); });
+
+boot();
+</script>
+</body>
+</html>
